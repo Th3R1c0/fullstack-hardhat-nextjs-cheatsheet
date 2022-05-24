@@ -92,7 +92,7 @@ const Layout = ({ children }: LayoutProps) => {
             </svg>
           </div>
         </div>
-        <div>
+        <div className='w-full h-full'>
           <main>{children}</main>
         </div>
       </div>
