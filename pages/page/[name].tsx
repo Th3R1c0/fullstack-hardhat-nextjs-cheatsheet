@@ -1,6 +1,25 @@
 import { GetStaticProps } from 'next';
 import { useRouter } from 'next/router';
 import { useState, createContext, useContext } from 'react';
+
+
+
+
+
+//todo:
+// create components for functions
+// fix add link button
+// implement callback function for updating text on buttons
+// combine textblock,codeblock,sectionblock..ect into one function
+//intergrate firebase for database
+// find / get a new layout and look (very end)
+
+
+
+
+
+
+
 //move this to a seperate file
 const Sitelink = ({ url, name }: sitelink) => {
   return (
