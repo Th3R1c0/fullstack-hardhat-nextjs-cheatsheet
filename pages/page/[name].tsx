@@ -1,10 +1,20 @@
 import { GetStaticProps } from 'next';
 import { useRouter } from 'next/router';
-import { useState, createContext, useContext } from 'react';
+import { useState, createContext, useContext, useEffect } from 'react';
+import { app, db } from '../../firebase';
+import {
+  getDatabase,
+  ref,
+  set,
+  onValue,
+  child,
+  push,
+  update,
+} from 'firebase/database';
 
+//firebase not working, need to find a example to clone :(
 
-
-
+//current: database, either ssr fetch, or somewhere in the components is fucking up array of data, find and fix
 
 //todo:
 // create components for functions
@@ -12,13 +22,60 @@ import { useState, createContext, useContext } from 'react';
 // implement callback function for updating text on buttons
 // combine textblock,codeblock,sectionblock..ect into one function
 //intergrate firebase for database
-// find / get a new layout and look (very end)
+// find / get a new layout and look (latestage )
 
+function fakedata() {
+  const mock_data = [
+    {
+      id: 0,
+      type: 'section',
+      text: 'section1',
+    },
+    {
+      id: 1,
+      type: 'code',
+      text: 'a code block 1',
+    },
+    {
+      id: 2,
+      type: 'link',
+      text: 'this is a link breh',
+    },
+  ];
+  const newPostKey = push(child(ref(db), 'tailwind')).key;
 
+  // Write the new post's data simultaneously in the posts list and the user's post list.
+  const updates = {};
+  updates['/tailwind/' + newPostKey] = mock_data;
+  updates['/next/' + newPostKey] = mock_data;
 
+  return update(ref(db), updates);
+}
 
+//fakedata()
 
-
+const data = [
+  {
+    name: 'tailwind',
+    sections: ['svgs', 'components', 'animation'],
+    links: [
+      {
+        name: 'heroicons',
+        url: 'https://heroicons.com/',
+      },
+    ],
+  },
+  {
+    name: 'next',
+    sections: ['dynamic', 'pages', 'ssr', ' ssg', 'isr'],
+    links: [
+      {
+        name: 'ssr resources',
+        url: 'https://heroicons.com/',
+      },
+    ],
+  },
+];
 
 //move this to a seperate file
 const Sitelink = ({ url, name }: sitelink) => {
@@ -77,24 +134,11 @@ const Sections_edit_bar = ({ AddBlock }: any) => {
 };
 
 interface contentbox {
+  id: number;
   type: 'code' | 'text' | 'section' | 'link';
   text: string;
   url?: string;
 }
-const mock_data = [
-  {
-    type: 'section',
-    text: 'section1',
-  },
-  {
-    type: 'code',
-    text: 'a code block 1',
-  },
-  {
-    type: 'link',
-    text: 'this is a link breh',
-  },
-];
 
 const TextBlock = ({ text }) => {
   return (
@@ -114,22 +158,27 @@ const SectionBlock = ({ text }) => {
 
 //pass a function here through context or props to update text to database.
 
-const CodeBlock = ({ text }) => {
+const CodeBlock = ({ text, updateblock }) => {
   const [t, setText] = useState(text);
   const [isEditing, toggleEdditing] = useState(false);
   const handleKeyPress = (e) => {
     if (e.key == 'Enter') {
       toggleEdditing(!isEditing);
+      updateblock(t);
     }
   };
   const box = (
-    <div className="" onDoubleClick={() => toggleEdditing(!isEditing)}>
+    <div
+      className="p-2 bg-black w-max text-white rounded-md text-left"
+      onDoubleClick={() => toggleEdditing(!isEditing)}
+    >
       <p>{t}</p>
     </div>
   );
   const editingbox = (
-    <div>
+    <div className="p-2 bg-black w-max text-white rounded-md text-left">
       <input
+        className="bg-inherit"
         type="text"
         onKeyPress={(e) => handleKeyPress(e)}
         onChange={(e) => setText(e.target.value)}
@@ -145,7 +194,29 @@ const ContentBox = () => {
   const data = useContext(DataContext);
 
   //called contentboxes because they are boxes like a todolist, that can be reordered and reorganized
-  const [content_boxes, setContent_boxed] = useState(mock_data);
+  const [content_boxes, setContent_boxed] = useState(data);
+  console.log(data, 'data from contentbox');
+  useEffect(() => {
+    //fetch database
+    const currentref = ref(db, `${data.name}`);
+    onValue(currentref, (snapshot) => {
+      //const data = snapshot.val();
+      //console.log(data.tailwind.N33jrtIBCsB5vZvtaNj)
+      snapshot.forEach((childSnapshot) => {
+        const childKey = childSnapshot.key;
+        const childData = childSnapshot.val();
+        // ...
+        console.log(childData);
+        setContent_boxed(childData);
+      });
+    });
+  }, []);
+
+  console.log(content_boxes[0].type, 'fetched content boxes, frontend');
+
+  const updateblock = (text) => {
+    console.log(text);
+  };
 
   const AddBlock = (type) => {
     setContent_boxed([
@@ -169,13 +240,16 @@ const ContentBox = () => {
           //'code' | 'text' | 'section' | 'link',
           switch (box.type) {
             case 'code':
-              return <CodeBlock text={box.text} />;
+              return <CodeBlock text={box.text} updateblock={updateblock} />;
             case 'text':
               return <TextBlock text={box.text} />;
             case 'section':
               return <SectionBlock text={box.text} />;
             case 'link':
               return <Sitelink key={box?.url} text={box.text} />;
+            default:
+              console.log(box.type);
+              return;
           }
         })}
       </div>
@@ -197,11 +271,15 @@ const PageContent = () => {
 
 const SectionBox = () => {
   const data = useContext(DataContext);
+  //const sections = data.filter(block => block.id )
+  //console.log(sections, 'sections')
+  const sections = ['fds'];
+  console.log(data[2].type, 'data'); //need to filter data to just blocks with type section to render sections
   return (
     <>
       <div className=" flex flex-col space-y-4 h-full border-green-300 border-2">
         <div className="border-r-2 flex flex-col w-32 space-y-4 w-max h-full border-red-300 ">
-          {data.sections.map((section) => (
+          {sections.map((section) => (
             <div
               key={section}
               className="w-full cursor-pointer h-max rounded-md text-center bg-blue-500 p-2"
@@ -217,16 +295,15 @@ const SectionBox = () => {
 
 const DataContext = createContext('');
 
-const RenderPage = (props) => {
-  console.log(props.data[0].name);
-  const data = props.data[0];
+const RenderPage = ({ data }) => {
+  console.log(data);
 
   return (
     <div className="w-full space-y-4 h-screen flex flex-col p-4">
       <div className="w-full h-max pb-4 border-b-2 border-gray-300">
         <p className="font-bold text-5xl">Tailwind css</p>
         <p>
-          docs:{' '}
+          docs:
           <a href="https://tailwindcss.com/docs/installation" className="">
             https://tailwindcss.com/docs/installation
           </a>
@@ -251,6 +328,7 @@ export async function getServerSideProps(context) {
   const pagename = params.name;
   //params: If this page uses a dynamic route, params contains the route parameters. If the page name is [id].js , then params will look like { id: ... }.
   console.log(params);
+
   const data = [
     {
       name: 'tailwind',
@@ -275,9 +353,28 @@ export async function getServerSideProps(context) {
   ];
   const filtereddata = data.filter((i) => i.name == params.name);
 
+  const fetcher = () => {
+    //fetch database
+    const currentref = ref(db, `${params.name}`);
+    var a = [];
+    onValue(currentref, (snapshot) => {
+      //const data = snapshot.val();
+      //console.log(data.tailwind.N33jrtIBCsB5vZvtaNj)
+      snapshot.forEach((childSnapshot) => {
+        const childKey = childSnapshot.key;
+        const childData = childSnapshot.val();
+        // ...
+        a.push(childData);
+      });
+    });
+    return a;
+  };
+  const datatopass = fetcher();
+  console.log(datatopass, 'backend caling here');
+
   return {
     props: {
-      data: filtereddata,
+      data: datatopass,
     }, // will be passed to the page component as props
   };
 }
